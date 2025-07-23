@@ -55,8 +55,7 @@
 * bundle层面可以做嵌套, 但是最后生成到实体的时候, 会是扁平结构体
 * 聚合组件, 组成一个完整的结构, 可以理解为表结构中的一整行数据
 
-##
-    * 可以切换所在层# Query
+### Query
 * 查询, 作为系统的参数, 通过指定类型为`Query<Component>`, 获得包含该元组的所有实体
 * 范型可以指定为元组进行嵌套, 获取多个实体
 * 还可以用Option包裹做空处理
@@ -152,3 +151,32 @@
     * 或者通过`GltfAssetLable`的枚举来加载
 * 通过Scence
 * 自定义的材质需要注册到`MaterialPlugin`中
+
+### Keyboard
+* `ButtonInput<KeyCode>`, 作为系统的参数来获取键盘按下的键位
+* `pressed/released` 获取是否已经按下和释放
+* `just_` 开头用于获取正在按下和释放
+* 可以用`input_just_pressed`方法作为`run_if`的条件
+* `EventReader<KeyboardInput>`可以获取键盘完整输入, 包括逻辑键位, 通过`read`方法获取`KeyboardInput`, 再去获取详细信息
+    * 逻辑键通过`Charcter`枚举获取输入内容
+* `NodeBundle`用于创建UI
+
+### Mouse
+* `ButtonInput<MouseButton>`, 作为系统的参数来获取鼠标的操作
+* 同样能够获取已经按下释放和正在按下释放, 也能作为运行条件
+* `EventReader<MouseWheel>`可以获取鼠标滚动输入, 通过`read`方法获取`MouseWheel`, 再去获取详细信息
+    * 先判断移动的单位, 可能是行(Line)或者像素(Pixel), 受到硬件和操作系统影响
+    * 行适用于固定步长的硬件, 桌面鼠标滚轮. 可能不是整数.
+    * 像素适用于平滑滚动的硬件, 笔记本触摸板
+* `EventReader<MouseMotion>`用于获取2帧之间鼠标在窗口中移动的增量, 通过`read`方法获取`MouseMotion`后再取得`delta`
+* `Window`能够获取窗口内鼠标的实际位置`cursor_position`, 在通过相机把窗口中的位置转换为世界中的位置, 例如`camera.viewport_to_world_2d`
+* `EventReader<CursorMoved>`可以获取鼠标移动事件, 通过`read`方法获取`CursorMoved`, 再去获取详细信息
+    * 获取到的`position`也需要通过相机进行转换
+* `Gizmos`用于绘制图形
+
+### Window
+* 配置标题, id(name), 模式(窗口, 全屏, 无边框等), 位置, 透明(背景色也要透明才行), 分辨率, 最大最小尺寸, 光标(图标, 位置等)等
+* 在`DefaultPlugins`中, 可以调用`set`方法进行配置, 最后通过`..default()`填充剩余默认配置
+
+### ClearColor
+* 背景色
