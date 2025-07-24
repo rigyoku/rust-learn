@@ -102,10 +102,6 @@
     * 全局的不能立刻拿到值, 需要在`PostUpdate`传播更新后, 并且在`TransformSystem::TransformPropagate`这个系统集后才能拿到最新的值
 * 平移和缩放可以直接改, 旋转难以计算所以提供了方法
 
-### Local
-* 系统的本地变量
-* 只有这个系统能够访问到
-
 ### Time
 * 全局资源, 每帧更新
 
@@ -204,4 +200,46 @@
 * 优先使用事件, 性能高于变更检测
 * 事件相关系统会受到执行顺序影响, 需要控制执行顺序
     * 如果A系统接收事件的情况下, A系统已经运行, B系统再发事件, A只能在下一帧才能接收到了
-        * 如果下一帧变成B先执行, 再执行A, 就会出现问题, A会收到2次最新的B事件
+
+### Local
+* 系统的本地变量, 作为系统的参数, 只有这个系统能够访问到, 独立于实体和组件
+* 一个系统可以有多个相同类型的`Local`
+* 类型需要实现`Default`或者`FromWorld`来自动初始化
+* 如果需要自定义初始化, 还可以使用闭包, 在组册系统时候传入参数
+
+### Schedule
+* 负责调度系统的运行
+* 注册系统时, 可以设置条件, 设置执行顺序, 通过系统集控制顺序
+* 执行系统需要满足下列条件, 默认并行
+    * 没有其他系统访问需要的可变引用
+    * 依赖的前置位系统全都执行完成或者被跳过
+    * 自身条件表达式为`true`
+* 3个主要的`Schedule`
+    * `Main`运行其他的一系列`Schedule`
+        * 启动执行
+            * PreStartup
+            * Startup
+            * PostStartup
+        * 每帧执行 (由于和帧数相关, 每秒执行次数不固定)
+            * First
+            * PreUpdate
+            * Update
+            * StateTransition: 由于有状态的判断条件, 不一定会执行
+            * RunFixedMainLoop: 按照`FixedTime`的固定次数执行 (不会每帧执行, 但总执行次数固定. 例如第一帧没执行, 那么下一帧会额外执行一次补回第一帧的次数)
+                * FixedFirst
+                * FixedPreUpdate
+                * FixedUpdate
+                * FixedPostUpdate
+                * FixedLast
+            * PostUpdate
+            * Last
+    * `ExtractSchedule`从`Main`提取数据给`Render`
+    * `Render`渲染视图
+    * 执行过程为: 上一帧的`Render`和当前帧的`Main`并行, `Main`结束后执行`ExtractSchedule`, 结束后再执行`Render`同时并行下一帧的`Main`
+* 可以创建自定义的`Schedule`
+    * 需要添加`ScheduleLable`组件作为标签
+    * 通过`add_schedule`注册到`app`中
+    * 通过`app.world_mut().resource_mut::<MainScheduleOrder>()`来控制执行顺序
+        * 例如执行`insert_after`把自定义的`Schedule`放在某个`Schedule`之后执行
+
+### State
