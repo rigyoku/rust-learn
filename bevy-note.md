@@ -33,16 +33,6 @@
 * 负责集成插件, 管理反射, 管理系统/系统集, 管理资源, 管理状态, 管理事件
 * 最后通过`run`来启动应用
 
-### Plugin
-* 插件, 模块化资源
-* `DefaultPlugins`包含了很多功能, 比如窗口
-* `MinimalPlugins`只包含局部功能
-* `WorldInspectorPlugin`能够获取实例的当前状态, 也能修改
-* `BlendyCamerasPlugin `可以在运行时调整摄像机
-* `BillboardPlugin`用于在3d中显示文字
-* 可以实现`Plugin`的trait来创建自己的插件, 通过`build`方法完成对app的处理
-* 插件之前安装声明顺序安装, 需要先安装默认插件
-
 ### Resource
 * 资源, 全局单例
 * 本质是派生了`Resource`的结构体
@@ -243,3 +233,72 @@
         * 例如执行`insert_after`把自定义的`Schedule`放在某个`Schedule`之后执行
 
 ### State
+* 状态, 枚举类型, 派生`States`等一系列`trait`
+* 设置了`#[default]`可以做`init_state`, 不然只能`insert_state`
+* 注册系统时, 可以通过`in_state`限定在某些状态执行
+    * 还可以通过系统集的形式, 为系统集配置`run_if(in_state)`, 然后添加系统到系统集
+* `OnEnter`进入状态, `OnExit`退出状态, `OnTransition`切换状态(可以指定切换前后的状态)
+* 自定义插件时, 可以把状态作为泛型参数, 这样在插件内就能适配不同的状态切换了
+* 通过`Res<State>`的`get`方法来获取状态, `ResMut<NextState>`的`set`方法更新状态
+* 切换状态流程
+    * 广播`StateTransitionEvent`事件, 适合不关系切换前后状态的情况
+        * 发生在`PreUpdate`和`Update`/`FixedMain`中间
+    * 执行`OnExit`, 退出旧状态
+    * 执行`OnTrainsition`, 携带切换前后的状态
+    * 执行`OnEnter`, 进入新状态
+* 如果一帧切换一次状态还不够, 可以通过`apply_state_transition`额外切换
+
+### Plugin
+* 插件, 模块化资源
+* `DefaultPlugins`包含了很多功能, 比如窗口
+* `MinimalPlugins`只包含局部功能
+* `WorldInspectorPlugin`能够获取实例的当前状态, 也能修改
+* `BlendyCamerasPlugin `可以在运行时调整摄像机
+* `BillboardPlugin`用于在3d中显示文字
+* 可以实现`Plugin`的trait来创建自己的插件, 通过`build`方法完成对app的处理.  除了`build`, 还有其他方法可以实现
+    * `is_unique`插件能否多次实例化
+    * `name`定义插件名字
+    * `ready`所有插件都`build`后, 再遍历所有插件, 顺序执行这个方法
+        * 如果`build`包含异步操作, `ready`里需要判断异步操作是否结束, 结束再返回`true`
+    * `finish`所有插件的`ready`都返回true后, 再遍历所有插件, 顺序执行这个方法
+    * 也可以写一个方法接收`&mut App`参数作为插件, 但是不能像结构体一样进行配置
+* 插件之前安装声明顺序安装, 需要先安装默认插件
+* 自定义插件可以不必暴露出所以方法, 只需要暴露一个入口来接收`app`即可
+    * 数据也可以进行私有化, 不去暴露组件的类型, 这样外面没办法直接查询
+* 最佳实践
+    * 为不同的状态创建插件
+    * 为不同的子系统创建插件
+* 通过插件组(实现`PluginGroup`的结构体)来插入多个插件, 同时提供`set`方法替换某些插件, 提供`disable`方法禁用某些插件
+    * 禁用后仍然会编译到代码中, 想彻底删除需要调整`Cargo.toml`的`features`属性
+* 运行时不可变的属性, 放到插件里. 运行时可变的, 放到资源里
+
+### Changed
+* 变化检测, 作为Query的条件
+    * Added会在组件添加到实体, 或者创建带有组件的实体时触发
+    * Changed会在组件被修改, 或者添加到实体时触发
+* 通过Ref包裹作为条件时, 可以通过不可变引用获取是否添加(`is_added`)和是否修改(`is_changeed`)
+* 资源也提供了`is_added`和`is_changeed`这2个方法
+* 修改组件时, 新旧值即使相同, 也会触发变化检测
+
+### Parent
+* `ecs`是扁平架构, 带层次的结构的情况使用父子关系来实现
+* 实体可以创建时就带着父子结构, 也可以后期修改
+* 实体可以通过`parent`和`children`组件访问父子组件
+* 子实体可以从父实体继承位置和可见性
+* 父子关系和实体不是强关联的, 单独删除实体不会解除父子关系, 需要单独维护
+
+### Visibility
+* 可见性需要3个组件
+    * `Visibility`可写, 控制是否渲染的组件, 可以从父实体继承或者手动控制隐藏和显示
+    * `InheritedVisibility`只读, 从父实体继承得到的可见性, 在`PostUpdate`的`VisibilitySystem::VisibilityPropagate`之后才能拿到最新值
+    * `ViewVisibility`只读, 上面2个组件叠加后, 是否在相机和光源之内的真实可见性, 在`PostUpdate`的`VisibilitySystem::CheckVsibility`之后才能拿到最新值
+        * 用于性能优化, 不可见就不渲染了
+* 通过`VisibilityBundle`可以快速创建上面3个组件
+    * 通过`SpatialBundel`可以快速创建可见和变换组件
+
+### AssetEvent
+
+
+## 物理引擎
+* Avian, 专为bevy开发的物理引擎, 稳定性不太好
+* Rapier3d, 通用物理引擎套了个bevy的桥
