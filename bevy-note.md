@@ -1,7 +1,7 @@
 # Bevy Note
 * 开源, 免费的rust游戏引擎
 
-## 核心概念
+## v0.14
 
 ### ECS
 * E: entity, 实体
@@ -297,7 +297,46 @@
     * 通过`SpatialBundel`可以快速创建可见和变换组件
 
 ### AssetEvent
+* 通过`EventReader<AssetEvent<T>>`可以获取对应类型的资产事件, 能拿到资产id
+    * `Added`添加资产触发, 代码添加和load外部资产都会触发
+    * `Modified`修改资产触发, 这个事件里修改资产会导致死循环
+    * `Removed`移除资产触发
+    * `Unused`删除了所有强句柄触发
+    * `LoadedWithDependencies`依赖项和本地都加载完触发
+* 通过`AssetServer`的`get_load_state`方法传入资产id获取资产的加载状态
+    * `NotLoaded`
+    * `Loading`
+    * `Loaded`
+    * `Failed`
 
+### HDR
+* 高动态范围, 处理非常亮的光或者颜色, 自发光效果
+* 目前不支持HDR输出, 需要把内部HDR转换为SDR(标准动态范围)
+* 相机默认禁用了HDR, 只输出0~1的标准RGB颜色
+    * 如果需要后处理(比如辉光效果)可以开启
+
+### Bloom
+* 辉光, 亮光的周围产生光晕
+* 相机实体添加`BloomSettings`组件开启辉光效果
+* 提供3种模式
+    * NATURAL 节能模式, 最自然
+    * OLD_SCHOOL: 发光效果, 老游戏
+    * SCREEN_BLUR: 非常强的效果, 模糊所有东西
+
+### IME
+* 输入法编辑器, 手写输入, 通过`EventReader<Ime>`获取事件
+* 输入时, 先识别出一个内容, 作为缓存区内容
+    * 通过`Ime::Preedit`事件接收, 并显示到屏幕上
+    * 和确认的文本使用不同的样式显示来区分
+* 用户承认缓存区的内存, 得到最终文本
+    * 通过`Ime::Commit`事件接收
+    * 正常样式显示最终文本, 删除缓冲文本
+    * 承认后, 自动触发一次预输入到缓冲区, 值为空
+* 需要输入时在启动IME, 输入完成后再禁用
+    * `window.ime_enabled`来启用和禁用, 触发`Enabled/Disabled`事件
+    * `window.ime_position`控制显示位置
+* 内置字体不支持中文, 需要加载中文字体
+* Text可以拥有多个section, 每个section有独立样式
 
 ## 物理引擎
 * Avian, 专为bevy开发的物理引擎, 稳定性不太好
