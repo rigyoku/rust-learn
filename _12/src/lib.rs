@@ -6,17 +6,10 @@ pub struct Config {
 }
 
 impl Config {
-    pub fn build(args: &Vec<String>) -> Result<Self, &str> {
-        if args.len() < 3 {
-            return Err("Usage: <program> <target_file> <file>");
-        }
+    pub fn build(mut args: impl Iterator<Item=String>) -> Result<Self, &'static str> {
         Ok(Config {
-            target: args
-                .get(1)
-                .cloned()
-                .expect("No target file provided")
-                .to_string(),
-            file_path: args.get(2).cloned().expect("No file provided").to_string(),
+            target: args.nth(1).ok_or("No target file provided")?,
+            file_path: args.next().ok_or("No file provided")?,
         })
     }
 }
@@ -28,14 +21,9 @@ pub fn run(config: Config) -> Result<Vec<String>, Box<dyn Error>> {
     Ok(res)
 }
 
-fn search<'a>(contents: &'a str, target: &'a str) -> Vec<String> {
-    let mut vec = Vec::new();
-    for content in contents.lines() {
-        if content.contains(target) {
-            vec.push(content.to_string());
-        }
-    }
-    vec
+fn search<'a>(contents: &'a str, target: &str) -> Vec<String> {
+    contents.lines()
+        .filter(|line|line.contains(target)).map(|line|line.to_string()).collect()
 }
 
 #[cfg(test)]
@@ -48,8 +36,8 @@ mod tests {
             "program".to_string(),
             "target.txt".to_string(),
             "file.txt".to_string(),
-        ];
-        let config = Config::build(&args).unwrap();
+        ].into_iter();
+        let config = Config::build(args).unwrap();
         assert_eq!(config.target, "target.txt");
         assert_eq!(config.file_path, "file.txt");
     }
@@ -82,8 +70,8 @@ It contains some text.";
             "program".to_string(),
             "o".to_string(),
             "/Applications/htc-3/self/rust-learn/_12/assert/test.log".to_string(),
-        ];
-        let config = Config::build(&args).unwrap();
+        ].into_iter();
+        let config = Config::build(args).unwrap();
         assert!(run(config).is_ok());
     }
 
