@@ -531,7 +531,7 @@
     * 可以测试私有接口
     * 单元测试和目标文件放在同一个文件中
     * 每个文件都应该有单元测试
-    * 测试模块`tests`, 使用`#cfg(test)`标注模块(只在测试时使用, 不会被build)
+    * 测试模块`tests`, 使用`#[cfg(test)]`标注模块(只在测试时使用, 不会被build)
     * 模块中通过`use super::*;`引入文件中其他方法, 包括私有方法来测试
 
 * 集成测试
@@ -613,4 +613,50 @@
 * 迭代器性能和for循环是一致的
 * 零开销: 不使用的功能无需为其付出代价; 而已经使用的功能，也不可能通过手写代码做得更好
 
+## 14 Cargo
 
+### profile
+* 默认包含了dev和release的profile
+    * `[profile.dev]` opt-level为0, 表示不进行优化, 编译更快, 牺牲了运行速度
+    * `[profile.release]` opt-level为3, 表示进行最大化优化, 编译更慢, 运行速度更快
+
+### cargo io
+* 公有的源, 相当于pypi和npmjs
+* 使用`///`来写方法的文档注释, 支持md格式
+    * 写在方法名上面
+    * 使用`cargo doc`来生成文档
+    * rust类型的代码块中的内容会在测试时执行
+* 使用`//!`来写模块级别的文档注释
+    * 写在文件顶部
+* 模块的层级结构对于创建者来说有意义, 但是使用者可能很困惑(得在文档中一层层点下去)
+    * 可以使用`pub use self::xx::xx`来把子层级的内容暴露到上层, 会在文档生成`Re-exports`块, 可以直接点进去
+* 发布共有包需要使用github账户登录cargoio, 然后拿到api token, 使用`cargo login`命令登录
+    * 配置`Cargo.toml`, 确保名字未被注册, 并填写`license`
+    * 发布后, crate就不能被删除和修改了, 只能发布新版本
+    * 可以撤回某个版本, 但是已经使用了这个版本依赖的项目(cargo.lock包含这个版本)仍然能继续使用, 新项目(cargo.lock不包含这个版本)无法引用
+        * 撤回操作可以撤销
+        * 撤回只是阻碍新项目使用, 不会删除crate
+
+### cargo workspace
+* 大型项目可能需要单独拆分lib
+* 入口(main, 二进制)所在的`Cargo.toml`, 添加`[workspace]`来定义工作区, 类似于`monorepo`的概念
+* 入口使用`cargo new`来创建子lib
+    * 子lib的构建产物也存在在根目录target之下, cargo.lock也在只有根目录才有, 确保不同模块使用相同版本的依赖
+        * 其他模块引入了外部包后, 该模块想要使用, 也必须明确声明依赖才能使用
+    * 为了lib和入口能够使用子lib, 需要在`Cargo.toml`中添加依赖, 使用相对路径来引入对应的crate
+        * 例如: `child2 = { path = "../child2" }`, 这样child1就能使用child2了
+    * 根目录也能执行子模块的测试, 例如`cargo test -p child2`
+
+### cargo install
+* 可以安装已经在cargo io注册的二进制crate, 例如`cargo install ripgrep`
+    * 通过`cargo uninstall`卸载, 例如`cargo uninstall ripgrep`
+* 还可以通过`--path`参数安装本地的crate
+* 默认安装路径在`$HOME/.cargo/bin`
+
+### cargo自定义命令
+* 构建二进制的crate, 名称为`cargo-xxx`, 并添加该二进制文件在path中
+* `cargo --list`就可以看到名为`xxx`的自定义命令, 执行`cargo xxx`会执行该二进制文件
+
+## 15 智能指针
+
+### 

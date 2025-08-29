@@ -1,6 +1,11 @@
 [package]
-name = "_14"
+name = "cargo-mytool"
 version = "0.1.0"
 edition = "2021"
 
 [dependencies]
+child1 = { path = "child1" }
+child2 = { path = "child2" }
+
+[workspace]
+members = ["child1", "child2"]
