@@ -83,41 +83,72 @@
 //     });
 // }
 
-extern crate trpl; // required for mdbook test
+// extern crate trpl; // required for mdbook test
 
-use std::time::Duration;
+// use std::time::Duration;
+
+// fn main() {
+//     trpl::run(async {
+//         let (tx, mut rx) = trpl::channel();
+
+//         let txh= async move {
+//             let vals = vec![
+//                 String::from("hi"),
+//                 String::from("from"),
+//                 String::from("the"),
+//                 String::from("future"),
+//             ];
+
+//             for val in vals {
+//                 tx.send(val).unwrap();
+//                 trpl::sleep(Duration::from_millis(500)).await;
+//             }
+//         };
+
+//         let rxh =async {
+//             while let Some(value) = rx.recv().await {
+//                 println!("received '{value}'");
+//             }
+//             // for i in rx.recv().await {
+//             //     println!("received '{i}'");
+//             // }
+//         };
+
+//         trpl::join(txh, rxh).await;
+
+//         // while let Some(i) = rx.recv().await {
+//         //     println!("received '{i}'");
+//         // }
+//     });
+// }
+
+use std::pin::pin;
+use std::{ time::Duration};
+
+use trpl::{ReceiverStream, Stream};
+use trpl::StreamExt;
 
 fn main() {
+    println!("Hello, world!");
+
     trpl::run(async {
-        let (tx, mut rx) = trpl::channel();
-
-        let txh= async move {
-            let vals = vec![
-                String::from("hi"),
-                String::from("from"),
-                String::from("the"),
-                String::from("future"),
-            ];
-
-            for val in vals {
-                tx.send(val).unwrap();
-                trpl::sleep(Duration::from_millis(500)).await;
-            }
-        };
-
-        let rxh =async {
-            while let Some(value) = rx.recv().await {
-                println!("received '{value}'");
-            }
-            // for i in rx.recv().await {
-            //     println!("received '{i}'");
-            // }
-        };
-
-        trpl::join(txh, rxh).await;
-
-        // while let Some(i) = rx.recv().await {
-        //     println!("received '{i}'");
-        // }
+        let mut stream = pin!(test().throttle(Duration::from_millis(500)));
+        while let Some(i) = stream.next().await {
+            println!("GOT = {i}");
+        }
     });
+
+}
+
+fn test() -> impl Stream<Item = String> {
+    let (tx, rx) = trpl::channel();
+    trpl::spawn_task(async move {
+        let arr = 1..10;
+        for i in arr {
+            println!("send {i}");
+            tx.send(format!("hi number {i} from the first task!")).unwrap();
+            trpl::sleep(Duration::from_millis(100)).await;
+        }
+    });
+    ReceiverStream::new(rx)
 }
