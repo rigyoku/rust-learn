@@ -994,8 +994,18 @@
 ## 21 web server demo
 
 ### 单线程
-* `std::net::TcpListener`用于监听tcp流
+* `std::net::TcpListener`用于监听tcp流, `BufReader`来读取流
+* 响应时, http固定头为 `HTTP/1.1 200 OK\r\n`, 然后是`响应头\r\n\响应体\r\n\r\n`
+    * 相应头可以有多个, 每个头之间用`\r\n`分隔
 
 ### 多线程
+* 单线程做耗时操作(例如sleep)会阻塞其他请求, 用线程池来改善
+* 创建一个线程池结构体
+    * 通过impl来提供new和execute方法
+        * new创建了通道, worker持有接收端(线程安全的), 线程池持有发送端
+        * execute方法把任务发送到通道中
+    * worker会循环来从接收端获取任务来执行, 取不到时阻塞子线程进行等待任务
 
 ### 优雅停机
+* 为线程池实现Drop方法, 把子线程都join了等待结束
+    * 由于子线程loop, 所以需要drop时候销毁sender来关闭通道, 这样子线程的recv会返回错误, 退出循环
